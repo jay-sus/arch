@@ -1,2 +1,3 @@
 # arch
+
 Arch install script
