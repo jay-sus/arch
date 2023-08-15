@@ -1,3 +1,3 @@
 # arch
 
-Arch install script
+Arch install scripts
