@@ -1,19 +1,16 @@
 #!/bin/bash
 
-# uncomment to debug 
-#set -xeuo pipefail
-
 # =============== Configuration ===============
 
 target="/dev/sda" # Check with lsblk
 ucode="intel-ucode"
 locale="en_US.UTF-8"
 keymap="us"
+editor="nano"
 timezone="Europe/London"
+reflector="UK,US"
 hostname="ARCH"
 username=""
-editor="nano"
-reflector="UK,US"
 
 basepacks=(
     base # Base packages
@@ -39,7 +36,7 @@ basepacks=(
 extrapacks=(
     man-db # Manual
     firefox # Web Browser
-    neofetch # Mandatory
+    neofetch # Very important
 )
 
 # =============== Pre-run checks ===============
@@ -63,7 +60,10 @@ if [[ $? -ne 0 ]]; then
     exit 3
 fi
 
-# =============== Disk partitioning ===============
+PS3="Run Setup step: "
+select opt in "Disk partitioning" "OS install" "Boot setup" "Quit" ; do
+case "$REPLY" in
+1) # =============== Disk partitioning ===============
 
 echo "Wiping partition table entries on device $target..."
 sgdisk -Z "$target"
@@ -102,7 +102,8 @@ mount /dev/vg/root /mnt
 mkdir -p /mnt/boot/efi
 mount -t vfat /dev/disk/by-partlabel/EFISYSTEM /mnt/boot/efi
 
-# =============== System bootstrap ===============
+;;
+2) # =============== OS install ===============
 
 echo "Updating pacman mirrorlist..."
 reflector --country $reflector --age 24 --protocol https \
@@ -114,32 +115,33 @@ pacstrap -K /mnt "${basepacks[@]}"
 echo "Generating fstab..."
 genfstab -U /mnt >> /mnt/etc/fstab
 
-echo "Removing and regenerating config files with systemd-firstboot..."
-rm -f /mnt/etc/{machine-id,localtime,hostname,shadow,locale.conf} ||
-systemd-firstboot --root /mnt --keymap="$keymap" --locale="$locale" \
-    --locale-messages="$locale" --timezone="$timezone" --hostname="$hostname" \
-    --setup-machine-id --welcome=false
-
-echo "Adding locale to /etc/locale.gen..."
-sed -i -e "/^#"$locale"/s/^#//" /mnt/etc/locale.gen
-
-echo "Generating locales..."
-arch-chroot /mnt locale-gen
-
-echo "Generating /etc/adjtime..."
+echo "Setting timezone and generating /etc/adjtime..."
+arch-chroot /mnt ln -sf /usr/share/zoneinfo/"$timezone" /etc/localtime
 arch-chroot /mnt hwclock --systohc
 
+echo "Configuring locale..."
+sed -i -e "/^#"$locale"/s/^#//" /mnt/etc/locale.gen
+arch-chroot /mnt locale-gen
+cat "LANG=en_GB.UTF-8" > /mnt/etc/locale.conf
+
+echo "Configuring keymap..."
+cat "KEYMAP=$keymap" > /mnt/etc/vconsole.conf
+
+echo "Configuring hostname..."
+cat "$hostname" > /mnt/etc/hostname
+
 echo "Creating local user..."
-arch-chroot /mnt useradd -G wheel -m "$username" 
+arch-chroot /mnt useradd -G wheel -m "$username"
+arch-chroot /mnt passwd "$username"
 
 echo "Enabling sudo for local user..."
 sed -i -e '/^# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/s/^# //' /mnt/etc/sudoers
 
 echo "Enabling services for next boot..."
-systemctl --root /mnt enable systemd-resolved NetworkManager iwd
-systemctl --root /mnt mask systemd-networkd
+systemctl --root /mnt enable dhcpcd iwd
 
-# =============== UKI and boot entry setup ===============
+;;
+3) # =============== Boot setup ===============
 
 echo "Creating dracut scripts..."
 arch-chroot /mnt /bin/bash -c "cat > /usr/local/bin/dracut-install.sh" << EOF
@@ -206,3 +208,13 @@ arch-chroot /mnt pacman -S linux
 
 echo "Creating EFI entry..."
 efibootmgr -c -d /dev/nvme0n1 -p 1 -L "Arch Linux" --index 0 --loader 'EFI\Linux\arch-linux.efi' -u
+
+;;
+4) 
+break
+;;
+*)
+continue
+;;
+esac
+done
