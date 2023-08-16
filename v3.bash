@@ -54,7 +54,7 @@ fi
 
 echo "Checking internet..."
 ping -c 1 "1.1.1.1" &> /dev/null
-if [[ $? -eq 0 ]]; then
+if [[ $? -ne 0 ]]; then
     echo "Connect to the internet! (use iwctl for wifi)" >&2
     exit 3
 fi
@@ -63,21 +63,23 @@ fi
 
 echo "Wiping partition table entries on device $target..."
 sgdisk -Z "$target"
+sync
 
 echo "Creating partitions (512MB EFI + encrypted LUKS)..."
 sgdisk -n1:0:+512M -t1:ef00 -c1:EFISYSTEM -N2 -t2:8309 -c2:LUKS "$target"
 
 echo "Reloading partition table..."
-sleep 2
+sleep 4
 partprobe -s "$target"
-sleep 2
+sleep 4
 
 echo "Formatting EFI partition..."
 mkfs.vfat -F 32 -n EFISYSTEM /dev/disk/by-partlabel/EFISYSTEM
 
 echo "Formatting LUKS partition..."
-cryptsetup luksFormat --type luks2 /dev/disk/by-partlabel/LUKS
-cryptsetup luksOpen --perf-no_read_workqueue --perf-no_write_workqueue --persistent /dev/disk/by-partlabel/LUKS cryptlvm
+cryptsetup luksFormat --type luks2 /dev/disk/by-partlabel/LUKS --label LUKS
+cryptsetup luksOpen --perf-no_read_workqueue --perf-no_write_workqueue \
+    --persistent /dev/disk/by-partlabel/LUKS cryptlvm
 
 echo "Creating volume group..."
 pvcreate /dev/mapper/cryptlvm
@@ -97,10 +99,11 @@ mount -t vfat /dev/disk/by-partlabel/EFISYSTEM "$rootmnt"/boot/efi
 # =============== System bootstrap ===============
 
 echo "Updating pacman mirrors..."
-reflector --country $reflector --age 24 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
+reflector --country $reflector --age 24 --protocol https \
+    --sort rate --save /etc/pacman.d/mirrorlist
 
 echo "Installing base packages..."
-pacstrap -K $rootmnt "${basepacks[@]}" 
+pacstrap -K $rootmnt "${basepacks[@]}"
 
 echo "Generating fstab..."
 genfstab -U "$rootmnt" >> "$rootmnt"/etc/fstab
@@ -110,11 +113,9 @@ sed -i -e "/^#"$locale"/s/^#//" "$rootmnt"/etc/locale.gen
 
 echo "Removing and generating config files with systemd-firstboot..."
 rm "$rootmnt"/etc/{machine-id,localtime,hostname,shadow,locale.conf} ||
-systemd-firstboot --root "$rootmnt" \
-	--keymap="$keymap" --locale="$locale" \
-	--locale-messages="$locale" --timezone="$timezone" \
-	--hostname="$hostname" --setup-machine-id \
-	--welcome=false
+systemd-firstboot --root "$rootmnt" --keymap="$keymap" --locale="$locale" \
+    --locale-messages="$locale" --timezone="$timezone" --hostname="$hostname" \
+    --setup-machine-id --welcome=false
 
 echo "Switching process root..."
 arch-chroot "$rootmnt"
