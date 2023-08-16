@@ -81,21 +81,11 @@ echo "Formatting EFI partition..."
 mkfs.vfat -F 32 -n EFISYSTEM /dev/disk/by-partlabel/EFISYSTEM
 
 echo "Formatting LUKS partition..."
-cryptsetup luksFormat --type luks2 /dev/disk/by-partlabel/LUKS --label LUKS &> /dev/null
-
-if [[ $? -ne 0 ]]; then
-    echo "Failure at luksFormat" >&2
-    exit 3
-fi
+cryptsetup luksFormat --type luks2 /dev/disk/by-partlabel/LUKS --label LUKS
 
 echo "Opening LUKS partition..."
 cryptsetup luksOpen --perf-no_read_workqueue --perf-no_write_workqueue \
-    --persistent /dev/disk/by-partlabel/LUKS cryptlvm &> /dev/null
-
-if [[ $? -ne 0 ]]; then
-    echo "Failure at luksOpen" >&2
-    exit 3
-fi
+    --persistent /dev/disk/by-partlabel/LUKS cryptlvm
 
 echo "Creating volume group vg..."
 pvcreate /dev/mapper/cryptlvm
