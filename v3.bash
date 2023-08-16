@@ -81,11 +81,21 @@ echo "Formatting EFI partition..."
 mkfs.vfat -F 32 -n EFISYSTEM /dev/disk/by-partlabel/EFISYSTEM
 
 echo "Formatting LUKS partition..."
-cryptsetup luksFormat --type luks2 /dev/disk/by-partlabel/LUKS --label LUKS
+cryptsetup luksFormat --type luks2 /dev/disk/by-partlabel/LUKS --label LUKS &> /dev/null
+
+if [[ $? -ne 0 ]]; then
+    echo "Failure at luksFormat" >&2
+    exit 3
+fi
 
 echo "Opening LUKS partition..."
 cryptsetup luksOpen --perf-no_read_workqueue --perf-no_write_workqueue \
-    --persistent /dev/disk/by-partlabel/LUKS cryptlvm
+    --persistent /dev/disk/by-partlabel/LUKS cryptlvm &> /dev/null
+
+if [[ $? -ne 0 ]]; then
+    echo "Failure at luksOpen" >&2
+    exit 3
+fi
 
 echo "Creating volume group vg..."
 pvcreate /dev/mapper/cryptlvm
@@ -115,7 +125,7 @@ echo "Generating fstab..."
 genfstab -U /mnt >> /mnt/etc/fstab
 
 echo "Removing and regenerating config files with systemd-firstboot..."
-rm /mnt/etc/{machine-id,localtime,hostname,shadow,locale.conf} ||
+rm -f /mnt/etc/{machine-id,localtime,hostname,shadow,locale.conf} ||
 systemd-firstboot --root /mnt --keymap="$keymap" --locale="$locale" \
     --locale-messages="$locale" --timezone="$timezone" --hostname="$hostname" \
     --setup-machine-id --welcome=false
@@ -142,7 +152,7 @@ systemctl --root /mnt mask systemd-networkd
 # =============== UKI and boot entry setup ===============
 
 echo "Creating dracut scripts..."
-arch-chroot /mnt cat << EOF > /usr/local/bin/dracut-install.sh
+arch-chroot /mnt /bin/bash -c "cat > /usr/local/bin/dracut-install.sh" << EOF
 #!/usr/bin/env bash
 mkdir -p /boot/efi/EFI/Linux
 while read -r line; do
@@ -153,7 +163,7 @@ while read -r line; do
     fi
 done
 EOF
-arch-chroot /mnt cat << EOF > /usr/local/bin/dracut-remove.sh
+arch-chroot /mnt /bin/bash -c "cat > /usr/local/bin/dracut-remove.sh" << EOF
 #!/usr/bin/env bash
 rm -f /boot/efi/EFI/Linux/arch-linux.efi
 EOF
@@ -161,7 +171,7 @@ arch-chroot /mnt chmod +x /usr/local/bin/dracut-*
 
 echo "Creating pacman hooks..."
 arch-chroot /mnt mkdir /etc/pacman.d/hooks
-arch-chroot /mnt cat << EOF > /etc/pacman.d/hooks/90-dracut-install.hook
+arch-chroot /mnt /bin/bash -c "cat > /etc/pacman.d/hooks/90-dracut-install.hook" << EOF
 [Trigger]
 Type = Path
 Operation = Install
@@ -175,7 +185,7 @@ Exec = /usr/local/bin/dracut-install.sh
 Depends = dracut
 NeedsTargets
 EOF
-arch-chroot /mnt cat << EOF > /etc/pacman.d/hooks/60-dracut-remove.hook
+arch-chroot /mnt /bin/bash -c "cat > /etc/pacman.d/hooks/60-dracut-remove.hook" << EOF
 [Trigger]
 Type = Path
 Operation = Remove
@@ -189,10 +199,10 @@ NeedsTargets
 EOF
 
 echo "Configuring dracut..."
-arch-chroot /mnt cat << EOF > /etc/dracut.conf.d/cmdline.conf
-kernel_cmdline="rd.luks.uuid=luks-${blkid -s UUID -o value "/dev/disk/by-partlabel/LUKS"} rd.lvm.lv=vg/root root=/dev/mapper/vg-root rootfstype=ext4 rootflags=rw,relatime"
+arch-chroot /mnt /bin/bash -c "cat > /etc/dracut.conf.d/cmdline.conf" << EOF
+kernel_cmdline="rd.luks.uuid=luks-$(blkid -s UUID -o value "/dev/disk/by-partlabel/LUKS") rd.lvm.lv=vg/root root=/dev/mapper/vg-root rootfstype=ext4 rootflags=rw,relatime"
 EOF
-arch-chroot /mnt cat << EOF > /etc/dracut.conf.d/flags.config
+arch-chroot /mnt /bin/bash -c "cat > /etc/dracut.conf.d/flags.config" << EOF
 compress="zstd"
 hostonly="no"
 EOF
