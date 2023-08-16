@@ -156,10 +156,10 @@ arch-chroot /mnt /bin/bash -c "cat > /usr/local/bin/dracut-install.sh" << EOF
 #!/usr/bin/env bash
 mkdir -p /boot/efi/EFI/Linux
 while read -r line; do
-    if [[ "$line" == 'usr/lib/modules/'+([^/])'/pkgbase' ]]; then
-        kver="${line#'usr/lib/modules/'}"
-        kver="${kver%'/pkgbase'}"
-        dracut --force --uefi --kver "$kver" /boot/efi/EFI/Linux/arch-linux.efi
+    if [[ "\$line" == 'usr/lib/modules/'+([^/])'/pkgbase' ]]; then
+        kver="\${line#'usr/lib/modules/'}"
+        kver="\${kver%'/pkgbase'}"
+        dracut --force --uefi --kver "\$kver" /boot/efi/EFI/Linux/arch-linux.efi
     fi
 done
 EOF
@@ -167,7 +167,7 @@ arch-chroot /mnt /bin/bash -c "cat > /usr/local/bin/dracut-remove.sh" << EOF
 #!/usr/bin/env bash
 rm -f /boot/efi/EFI/Linux/arch-linux.efi
 EOF
-arch-chroot /mnt chmod +x /usr/local/bin/dracut-*
+arch-chroot /mnt /bin/bash -c "chmod +x /usr/local/bin/dracut-*"
 
 echo "Creating pacman hooks..."
 arch-chroot /mnt mkdir /etc/pacman.d/hooks
@@ -211,6 +211,8 @@ echo "Disabling mkinitcpio hooks..."
 arch-chroot /mnt ln -sf /dev/null /etc/pacman.d/hooks/90-mkinitcpio-install.hook
 arch-chroot /mnt ln -sf /dev/null /etc/pacman.d/hooks/60-mkinitcpio-remove.hook
 
-echo "Generating UKI..."
+echo "Generating UKI by reinstallling linux..."
+arch-chroot /mnt pacman -S linux
 
-
+echo "Creating EFI entry..."
+efibootmgr -c -d /dev/nvme0n1 -p 1 -L "Arch Linux" --index 0 --loader 'EFI\Linux\arch-linux.efi' -u
