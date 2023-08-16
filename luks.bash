@@ -122,13 +122,13 @@ arch-chroot /mnt hwclock --systohc
 echo "Configuring locale..."
 sed -i -e "/^#"$locale"/s/^#//" /mnt/etc/locale.gen
 arch-chroot /mnt locale-gen
-cat "LANG=en_GB.UTF-8" > /mnt/etc/locale.conf
+echo "LANG=en_GB.UTF-8" > /mnt/etc/locale.conf
 
 echo "Configuring keymap..."
-cat "KEYMAP=$keymap" > /mnt/etc/vconsole.conf
+echo "KEYMAP=$keymap" > /mnt/etc/vconsole.conf
 
 echo "Configuring hostname..."
-cat "$hostname" > /mnt/etc/hostname
+echo "$hostname" > /mnt/etc/hostname
 
 echo "Creating local user..."
 arch-chroot /mnt useradd -G wheel -m "$username"
@@ -138,13 +138,14 @@ echo "Enabling sudo for local user..."
 sed -i -e '/^# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/s/^# //' /mnt/etc/sudoers
 
 echo "Enabling services for next boot..."
-systemctl --root /mnt enable dhcpcd iwd
+systemctl --root /mnt enable systemd-resolved NetworkManager iwd
+systemctl --root /mnt mask systemd-networkd
 
 ;;
 3) # =============== Boot setup ===============
 
 echo "Creating dracut scripts..."
-arch-chroot /mnt /bin/bash -c "cat > /usr/local/bin/dracut-install.sh" << EOF
+cat > /mnt/usr/local/bin/dracut-install.sh << EOF
 #!/usr/bin/env bash
 mkdir -p /boot/efi/EFI/Linux
 while read -r line; do
@@ -155,15 +156,15 @@ while read -r line; do
     fi
 done
 EOF
-arch-chroot /mnt /bin/bash -c "cat > /usr/local/bin/dracut-remove.sh" << EOF
+cat > /mnt/usr/local/bin/dracut-remove.sh << EOF
 #!/usr/bin/env bash
 rm -f /boot/efi/EFI/Linux/arch-linux.efi
 EOF
 arch-chroot /mnt /bin/bash -c "chmod +x /usr/local/bin/dracut-*"
 
 echo "Creating pacman hooks..."
-arch-chroot /mnt mkdir /etc/pacman.d/hooks
-arch-chroot /mnt /bin/bash -c "cat > /etc/pacman.d/hooks/90-dracut-install.hook" << EOF
+mkdir /mnt/etc/pacman.d/hooks
+cat > /mnt/etc/pacman.d/hooks/90-dracut-install.hook << EOF
 [Trigger]
 Type = Path
 Operation = Install
@@ -177,7 +178,7 @@ Exec = /usr/local/bin/dracut-install.sh
 Depends = dracut
 NeedsTargets
 EOF
-arch-chroot /mnt /bin/bash -c "cat > /etc/pacman.d/hooks/60-dracut-remove.hook" << EOF
+cat > /mnt/etc/pacman.d/hooks/60-dracut-remove.hook << EOF
 [Trigger]
 Type = Path
 Operation = Remove
@@ -191,10 +192,10 @@ NeedsTargets
 EOF
 
 echo "Configuring dracut..."
-arch-chroot /mnt /bin/bash -c "cat > /etc/dracut.conf.d/cmdline.conf" << EOF
+cat > /mnt/etc/dracut.conf.d/cmdline.conf << EOF
 kernel_cmdline="rd.luks.uuid=luks-$(blkid -s UUID -o value "/dev/disk/by-partlabel/LUKS") rd.lvm.lv=vg/root root=/dev/mapper/vg-root rootfstype=ext4 rootflags=rw,relatime"
 EOF
-arch-chroot /mnt /bin/bash -c "cat > /etc/dracut.conf.d/flags.config" << EOF
+cat > /mnt/etc/dracut.conf.d/flags.config << EOF
 compress="zstd"
 hostonly="no"
 EOF
@@ -207,7 +208,7 @@ echo "Generating UKI by reinstallling linux..."
 arch-chroot /mnt pacman -S linux
 
 echo "Creating EFI entry..."
-efibootmgr -c -d /dev/nvme0n1 -p 1 -L "Arch Linux" --index 0 --loader 'EFI\Linux\arch-linux.efi' -u
+efibootmgr -c -d "$target" -p 1 -L "Arch Linux" --index 0 --loader 'EFI\Linux\arch-linux.efi' -u
 
 ;;
 4) 
