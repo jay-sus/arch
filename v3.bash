@@ -33,7 +33,7 @@ basepacks=(
     cryptsetup # Encryption management
     e2fsprogs # Utilities for ext filesystem
     dosfstools # Utilities for fat filesystem
-    NetworkManager # Network management
+    networkmanager # Network management
 )
 
 extrapacks=(
@@ -142,7 +142,7 @@ systemctl --root /mnt mask systemd-networkd
 # =============== UKI and boot entry setup ===============
 
 echo "Creating dracut scripts..."
-cat << EOF > /usr/local/bin/dracut-install.sh
+arch-chroot /mnt cat << EOF > /usr/local/bin/dracut-install.sh
 #!/usr/bin/env bash
 mkdir -p /boot/efi/EFI/Linux
 while read -r line; do
@@ -153,15 +153,15 @@ while read -r line; do
     fi
 done
 EOF
-cat << EOF > /usr/local/bin/dracut-remove.sh
+arch-chroot /mnt cat << EOF > /usr/local/bin/dracut-remove.sh
 #!/usr/bin/env bash
 rm -f /boot/efi/EFI/Linux/arch-linux.efi
 EOF
-chmod +x /usr/local/bin/dracut-*
+arch-chroot /mnt chmod +x /usr/local/bin/dracut-*
 
 echo "Creating pacman hooks..."
-mkdir /etc/pacman.d/hooks
-cat << EOF > /etc/pacman.d/hooks/90-dracut-install.hook
+arch-chroot /mnt mkdir /etc/pacman.d/hooks
+arch-chroot /mnt cat << EOF > /etc/pacman.d/hooks/90-dracut-install.hook
 [Trigger]
 Type = Path
 Operation = Install
@@ -175,7 +175,7 @@ Exec = /usr/local/bin/dracut-install.sh
 Depends = dracut
 NeedsTargets
 EOF
-cat << EOF > /etc/pacman.d/hooks/60-dracut-remove.hook
+arch-chroot /mnt cat << EOF > /etc/pacman.d/hooks/60-dracut-remove.hook
 [Trigger]
 Type = Path
 Operation = Remove
@@ -189,16 +189,18 @@ NeedsTargets
 EOF
 
 echo "Configuring dracut..."
-cat << EOF > /etc/dracut.conf.d/cmdline.conf
+arch-chroot /mnt cat << EOF > /etc/dracut.conf.d/cmdline.conf
 kernel_cmdline="rd.luks.uuid=luks-${blkid -s UUID -o value "/dev/disk/by-partlabel/LUKS"} rd.lvm.lv=vg/root root=/dev/mapper/vg-root rootfstype=ext4 rootflags=rw,relatime"
 EOF
-cat << EOF > /etc/dracut.conf.d/flags.config
+arch-chroot /mnt cat << EOF > /etc/dracut.conf.d/flags.config
 compress="zstd"
 hostonly="no"
 EOF
 
 echo "Disabling mkinitcpio hooks..."
-ln -sf /dev/null /etc/pacman.d/hooks/90-mkinitcpio-install.hook
-ln -sf /dev/null /etc/pacman.d/hooks/60-mkinitcpio-remove.hook
+arch-chroot /mnt ln -sf /dev/null /etc/pacman.d/hooks/90-mkinitcpio-install.hook
+arch-chroot /mnt ln -sf /dev/null /etc/pacman.d/hooks/60-mkinitcpio-remove.hook
 
 echo "Generating UKI..."
+
+
