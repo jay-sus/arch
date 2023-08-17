@@ -2,7 +2,7 @@
 
 # =============== Configuration ===============
 
-target="/dev/sda" # Check with lsblk
+target="/dev/sda" # Find your disk with lsblk
 ucode="intel-ucode"
 locale="en_US.UTF-8"
 keymap="us"
@@ -17,13 +17,12 @@ basepacks=(
     linux # System kernel
     linux-firmware # Drivers for common hardware
     $ucode # Processor microcode
-    base-devel # Sudo and compilers
-    $editor # Text editor
-    lvm2 # Logical volume manager
+    base-devel # Sudo and useful compilers
+    $editor # Your text editor
+    lvm2 # Volume manager
     dracut # Boot process automation
     sbsigntools # UEFI signing tools
-    iwd # Wireless network access
-    git # Version control system
+    iwd # Wireless network tools
     efibootmgr # Manage EFI
     binutils # Manage binary files
     util-linux # Standard utility package
@@ -35,7 +34,8 @@ basepacks=(
 
 extrapacks=(
     man-db # Manual
-    firefox # Web Browser
+    firefox # Web browser
+    git # You're gonna need this
     neofetch # Very important
 )
 
@@ -61,7 +61,13 @@ if [[ $? -ne 0 ]]; then
 fi
 
 PS3="Run Setup step: "
-select opt in "Disk partitioning" "OS install" "Boot setup" "Quit" ; do
+opts=("Disk partitioning" "OS install" "Boot setup" "Quit")
+printopts() {
+    for i in "${!opts[@]}" ; do
+        echo "$i) ${opts[$i]}\n"
+    done
+}
+select opt in "${opts[@]}" ; do
 case "$REPLY" in
 1) # =============== Disk partitioning ===============
 
@@ -102,6 +108,7 @@ mount /dev/vg/root /mnt
 mkdir -p /mnt/boot/efi
 mount -t vfat /dev/disk/by-partlabel/EFISYSTEM /mnt/boot/efi
 
+printopts
 ;;
 2) # =============== OS install ===============
 
@@ -122,7 +129,7 @@ arch-chroot /mnt hwclock --systohc
 echo "Configuring locale..."
 sed -i -e "/^#"$locale"/s/^#//" /mnt/etc/locale.gen
 arch-chroot /mnt locale-gen
-echo "LANG=en_GB.UTF-8" > /mnt/etc/locale.conf
+echo "LANG=$locale" > /mnt/etc/locale.conf
 
 echo "Configuring keymap..."
 echo "KEYMAP=$keymap" > /mnt/etc/vconsole.conf
@@ -141,6 +148,7 @@ echo "Enabling services for next boot..."
 systemctl --root /mnt enable systemd-resolved NetworkManager iwd
 systemctl --root /mnt mask systemd-networkd
 
+printopts
 ;;
 3) # =============== Boot setup ===============
 
@@ -210,6 +218,7 @@ arch-chroot /mnt pacman -S linux
 echo "Creating EFI entry..."
 efibootmgr -c -d "$target" -p 1 -L "Arch Linux" --index 0 --loader 'EFI\Linux\arch-linux.efi' -u
 
+printopts
 ;;
 4) 
 break
