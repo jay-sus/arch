@@ -56,15 +56,16 @@ fi
 echo "Checking internet..."
 ping -c 1 "1.1.1.1" &> /dev/null
 if [[ $? -ne 0 ]]; then
-    echo "Connect to the internet! (use iwctl for wifi)" >&2
+    echo "Connect to the internet!" >&2
     exit 3
 fi
 
 PS3="Run Setup step: "
 opts=("Disk partitioning" "OS install" "Boot setup" "Quit")
 printopts() {
-    for i in "${!opts[@]}" ; do
-        echo "$i) ${opts[$i]}\n"
+    ind=1
+    for opt in "${opts[@]}" ; do
+        echo "$((ind++))) $opt"
     done
 }
 select opt in "${opts[@]}" ; do
