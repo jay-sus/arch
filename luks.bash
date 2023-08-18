@@ -19,8 +19,9 @@ essential=(
     $editor
     linux-firmware
     base-devel
-    dracut
     networkmanager
+    dracut
+    lvm2
 )
 
 # =============== Pre-run checks ===============
@@ -124,18 +125,18 @@ echo "KEYMAP=$keymap" > /mnt/etc/vconsole.conf
 echo "Configuring hostname..."
 echo "$hostname" > /mnt/etc/hostname
 
+echo "Installing essential packages..."
+arch-chroot /mnt pacman -Sy "${essential[@]}" --noconfirm --quiet
+
 echo "Creating local user..."
 arch-chroot /mnt useradd -G wheel -m "$username"
 arch-chroot /mnt passwd "$username"
 
-echo "Enabling sudo for local user..."
+echo "Enabling sudo for wheel group..."
 sed -i -e '/^# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/s/^# //' /mnt/etc/sudoers
 
-echo "Installing essential packages..."
-arch-chroot /mnt pacman -Sy "${essential[@]}" --noconfirm --quiet
-
 echo "Enabling services for next boot..."
-systemctl --root /mnt enable systemd-resolved NetworkManager iwd
+systemctl --root /mnt enable systemd-resolved NetworkManager
 systemctl --root /mnt mask systemd-networkd
 
 printopts
