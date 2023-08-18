@@ -126,7 +126,7 @@ echo "Configuring hostname..."
 echo "$hostname" > /mnt/etc/hostname
 
 echo "Installing essential packages..."
-arch-chroot /mnt pacman -Sy "${essential[@]}" --noconfirm --quiet
+arch-chroot /mnt pacman -Sy "${essential[@]}" --quiet
 
 echo "Creating local user..."
 arch-chroot /mnt useradd -G wheel -m "$username"
@@ -204,7 +204,7 @@ arch-chroot /mnt ln -sf /dev/null /etc/pacman.d/hooks/90-mkinitcpio-install.hook
 arch-chroot /mnt ln -sf /dev/null /etc/pacman.d/hooks/60-mkinitcpio-remove.hook
 
 echo "Generating UKI by reinstalling kernel..."
-arch-chroot /mnt pacman -Sy $kernel --noconfirm --quiet
+arch-chroot /mnt pacman -Sy $kernel --quiet
 
 echo "Creating EFI entry..."
 efibootmgr -c -d "$target" -p 1 -L "Arch Linux" \
