@@ -2,41 +2,25 @@
 
 # =============== Configuration ===============
 
-target="/dev/sda" # Find your disk with lsblk
+target="/dev/sda"
 ucode="intel-ucode"
+kernel="linux-lts"
+editor="nano"
 locale="en_US.UTF-8"
 keymap="us"
-editor="nano"
 timezone="Europe/London"
 reflector="UK,US"
 hostname="ARCH"
 username=""
 
-basepacks=(
-    base # Base packages
-    linux # System kernel
-    linux-firmware # Drivers for common hardware
-    $ucode # Processor microcode
-    base-devel # Sudo and useful compilers
-    $editor # Your text editor
-    lvm2 # Volume manager
-    dracut # Boot process automation
-    sbsigntools # UEFI signing tools
-    iwd # Wireless network tools
-    efibootmgr # Manage EFI
-    binutils # Manage binary files
-    util-linux # Standard utility package
-    cryptsetup # Encryption management
-    e2fsprogs # Utilities for ext filesystem
-    dosfstools # Utilities for fat filesystem
-    networkmanager # Network management
-)
-
-extrapacks=(
-    man-db # Manual
-    firefox # Web browser
-    git # You're gonna need this
-    neofetch # Very important
+essential=(
+    $kernel
+    $ucode
+    $editor
+    linux-firmware
+    base-devel
+    dracut
+    networkmanager
 )
 
 # =============== Pre-run checks ===============
@@ -60,6 +44,8 @@ if [[ $? -ne 0 ]]; then
     exit 3
 fi
 
+# =============== Select menu ===============
+
 PS3="Run Setup step: "
 opts=("Disk partitioning" "OS install" "Boot setup" "Quit")
 printopts() {
@@ -70,19 +56,19 @@ printopts() {
 }
 select opt in "${opts[@]}" ; do
 case "$REPLY" in
+
 1) # =============== Disk partitioning ===============
 
 echo "Wiping partition table entries on device $target..."
 sgdisk -Z "$target"
-sync
 
 echo "Creating partitions (512MB EFI + encrypted LUKS)..."
 sgdisk -n1:0:+512M -t1:ef00 -c1:EFISYSTEM -N2 -t2:8309 -c2:LUKS "$target"
 
 echo "Reloading partition table..."
-sleep 4
+sleep 2
 partprobe -s "$target"
-sleep 4
+sleep 2
 
 echo "Formatting EFI partition..."
 mkfs.vfat -F 32 -n EFISYSTEM /dev/disk/by-partlabel/EFISYSTEM
@@ -117,8 +103,8 @@ echo "Updating pacman mirrorlist..."
 reflector --country $reflector --age 24 --protocol https \
     --sort rate --save /etc/pacman.d/mirrorlist
 
-echo "Installing base packages..."
-pacstrap -K /mnt "${basepacks[@]}"
+echo "Installing base package..."
+pacstrap -K /mnt
 
 echo "Generating fstab..."
 genfstab -U /mnt >> /mnt/etc/fstab
@@ -144,6 +130,9 @@ arch-chroot /mnt passwd "$username"
 
 echo "Enabling sudo for local user..."
 sed -i -e '/^# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/s/^# //' /mnt/etc/sudoers
+
+echo "Installing essential packages..."
+arch-chroot /mnt pacman -Sy "${essential[@]}" --noconfirm --quiet
 
 echo "Enabling services for next boot..."
 systemctl --root /mnt enable systemd-resolved NetworkManager iwd
@@ -213,11 +202,13 @@ echo "Disabling mkinitcpio hooks..."
 arch-chroot /mnt ln -sf /dev/null /etc/pacman.d/hooks/90-mkinitcpio-install.hook
 arch-chroot /mnt ln -sf /dev/null /etc/pacman.d/hooks/60-mkinitcpio-remove.hook
 
-echo "Generating UKI by reinstallling linux..."
-arch-chroot /mnt pacman -S linux
+echo "Generating UKI by reinstalling kernel..."
+arch-chroot /mnt pacman -Sy $kernel --noconfirm --quiet
 
 echo "Creating EFI entry..."
-efibootmgr -c -d "$target" -p 1 -L "Arch Linux" --index 0 --loader 'EFI\Linux\arch-linux.efi' -u
+efibootmgr -c -d "$target" -p 1 -L "Arch Linux" \
+    --index 0 --loader 'EFI\Linux\arch-linux.efi' -u
+
 
 printopts
 ;;
