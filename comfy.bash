@@ -5,7 +5,7 @@
 
 target="/dev/sda"
 ucode="intel-ucode"
-kernel="linux-lts"
+kernel="linux"
 editor="nano"
 locale="en_US.UTF-8"
 keymap="us"
@@ -144,10 +144,10 @@ sed -i \
     -e '/^#default_options/s/^#//' \
     -e 's/default_image=/#default_image=/g' \
     -e "s/PRESETS=('default' 'fallback')/PRESETS=('default')/g" \
-    /mnt/etc/mkinitcpio.d/linux-lts.preset
+    /mnt/etc/mkinitcpio.d/"$kernel".preset
 
 echo "[comfy] Creating folder structure for UKI..."
-declare $(grep default_uki /mnt/etc/mkinitcpio.d/linux-lts.preset)
+declare $(grep default_uki /mnt/etc/mkinitcpio.d/"$kernel".preset)
 arch-chroot /mnt mkdir -p "$(dirname "${default_uki//\"}")"
 
 echo "[comfy] Enabling services for next boot..."
