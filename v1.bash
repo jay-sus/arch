@@ -46,7 +46,6 @@ fi
 
 
 
-
 echo "[comfy] Wiping partition table entries on device $target..."
 sgdisk -Z "$target"
 
@@ -76,16 +75,11 @@ mount /dev/mapper/root /mnt
 mkdir -p /mnt/efi
 mount -t vfat /dev/disk/by-partlabel/EFISYSTEM /mnt/efi
 
-printopts
-;;
-2) # =============== Installing packages ===============
-
 
 
 
 echo "[comfy] Updating pacman mirrorlist..."
-reflector --country $reflector --age 24 --protocol https \
-    --sort rate --save /etc/pacman.d/mirrorlist
+reflector --country $reflector --age 24 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
 
 echo "[comfy] Installing base package..."
 pacstrap -K /mnt
@@ -93,9 +87,6 @@ pacstrap -K /mnt
 echo "[comfy] Installing essential packages..."
 arch-chroot /mnt pacman -Sy "${essential[@]}" --noconfirm --quiet
 
-printopts
-;;
-3) # =============== System setup ===============
 
 
 echo "Setting up environment..."
@@ -164,21 +155,8 @@ arch-chroot /mnt usermod -L root
 #and we're done
 
 
-
-echo "[comfy] =============== Setup complete ==============="
-echo "[comfy] When you're ready, run reboot"
+echo "Install complete. Run reeboot!"
 sleep 2
 sync
-break
-
-;;
-4) 
-break
-;;
-*)
-continue
-;;
-esac
-done
 
 ) |& tee comfy.log -a
