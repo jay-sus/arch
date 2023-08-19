@@ -21,6 +21,16 @@ essential=(
     linux-firmware
     base-devel
     networkmanager
+    cryptsetup
+    util-linux
+    e2fsprogs
+    dosfstools
+    plasma
+    sddm
+    kitty
+    nm-connection-editor
+    mousepad
+    sbctl
 )
 
 # =============== Pre-run checks ===============
