@@ -76,12 +76,16 @@ mount /dev/mapper/root /mnt
 mkdir -p /mnt/efi
 mount -t vfat /dev/disk/by-partlabel/EFISYSTEM /mnt/efi
 
+printopts
+;;
+2) # =============== Installing packages ===============
 
 
 
 
 echo "[comfy] Updating pacman mirrorlist..."
-reflector --country $reflector --age 24 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
+reflector --country $reflector --age 24 --protocol https \
+    --sort rate --save /etc/pacman.d/mirrorlist
 
 echo "[comfy] Installing base package..."
 pacstrap -K /mnt
@@ -89,6 +93,9 @@ pacstrap -K /mnt
 echo "[comfy] Installing essential packages..."
 arch-chroot /mnt pacman -Sy "${essential[@]}" --noconfirm --quiet
 
+printopts
+;;
+3) # =============== System setup ===============
 
 
 echo "Setting up environment..."
@@ -96,7 +103,7 @@ echo "Setting up environment..."
 #add our locale to locale.gen
 sed -i -e "/^#"$locale"/s/^#//" /mnt/etc/locale.gen
 #remove any existing config files that may have been pacstrapped, systemd-firstboot will then regenerate them
-rm /mnt/etc/{machine-id,localtime,hostname,shadow,locale.conf} -f
+rm /mnt/etc/{machine-id,localtime,hostname,locale.conf} -f
 systemd-firstboot --root /mnt \
 	--keymap="$keymap" --locale="$locale" \
 	--locale-messages="$locale" --timezone="$timezone" \
@@ -157,9 +164,21 @@ arch-chroot /mnt usermod -L root
 #and we're done
 
 
-echo "Install complete. Run reeboot!"
-sleep 10
+
+echo "[comfy] =============== Setup complete ==============="
+echo "[comfy] When you're ready, run reboot"
+sleep 2
 sync
+break
+
+;;
+4) 
+break
+;;
+*)
+continue
+;;
+esac
+done
 
 ) |& tee comfy.log -a
-
