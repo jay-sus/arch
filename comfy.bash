@@ -29,7 +29,6 @@ bloat=(
     htop
     kitty
     pulseaudio
-    firefox
     yt-dlp
     mpv
     sway
