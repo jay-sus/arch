@@ -23,6 +23,21 @@ essential=(
     networkmanager
 )
 
+bloat=(
+    neofetch
+    git
+    htop
+    kitty
+    pulseaudio
+    firefox
+    yt-dlp
+    mpv
+    sway
+    swaybg
+    waybar
+    swaylock
+)
+
 # =============== Pre-run checks ===============
 
 echo "[comfy] Checking root..."
@@ -47,7 +62,8 @@ fi
 # =============== Setup menu ===============
 
 PS3="[comfy] Select action: "
-opts=("Partition disk" "Install packages" "Configure system" "Quit")
+opts=("Format disk" "Install essentials" "Configure system" \
+    "Secure Boot" "Install bloat" "Quit")
 printopts() {
     ind=1
     for opt in "${opts[@]}" ; do
@@ -57,7 +73,7 @@ printopts() {
 select opt in "${opts[@]}" ; do
 case "$REPLY" in
 
-1) # =============== Disk partitioning ===============
+1) # =============== Format disk ===============
 
 echo "[comfy] Wiping partition table entries on device $target..."
 sgdisk -Z "$target"
@@ -73,7 +89,7 @@ sleep 2
 echo "[comfy] Formatting EFI partition..."
 mkfs.vfat -F 32 -n EFISYSTEM /dev/disk/by-partlabel/EFISYSTEM
 
-echo "[comfy] Formatting LUKS partition..."
+echo "[comfy] Creating LUKS partition..."
 cryptsetup luksFormat --type luks2 /dev/disk/by-partlabel/linux --batch-mode
 
 echo "[comfy] Opening LUKS partition..."
@@ -90,7 +106,7 @@ mount -t vfat /dev/disk/by-partlabel/EFISYSTEM /mnt/efi
 
 printopts
 ;;
-2) # =============== Installing packages ===============
+2) # =============== Install essentials ===============
 
 echo "[comfy] Updating pacman mirrorlist..."
 reflector --country $reflector --age 24 --protocol https \
@@ -104,7 +120,7 @@ arch-chroot /mnt pacman -Sy "${essential[@]}" --noconfirm --quiet
 
 printopts
 ;;
-3) # =============== System setup ===============
+3) # =============== Configure system ===============
 
 echo "[comfy] Removing pacstrap-generated configs..."
 rm /mnt/etc/{machine-id,localtime,hostname,locale.conf} -f
@@ -118,7 +134,7 @@ echo "[comfy] Configuring locale..."
 sed -i -e "/^#"$locale"/s/^#//" /mnt/etc/locale.gen
 arch-chroot /mnt locale-gen
 
-echo "[comfy] Creating local user..."
+echo "[comfy] Creating user \""$username"\"..."
 arch-chroot /mnt useradd -G wheel -m "$username"
 arch-chroot /mnt passwd "$username"
 
@@ -154,32 +170,35 @@ systemctl --root /mnt mask systemd-networkd
 echo "[comfy] Generating UKI and installing Boot Loader..."
 arch-chroot /mnt mkinitcpio -p $kernel
 
-echo "[comfy] Setting up Secure Boot..."
-if [[ "$(efivar -d --name 8be4df61-93ca-11d2-aa0d-00e098032b8c-SetupMode)" -eq 1 ]]; then
-arch-chroot /mnt sbctl create-keys
-arch-chroot /mnt sbctl enroll-keys -m
-arch-chroot /mnt sbctl sign -s -o /usr/lib/systemd/boot/efi/systemd-bootx64.efi.signed /usr/lib/systemd/boot/efi/systemd-bootx64.efi
-arch-chroot /mnt sbctl sign -s "${default_uki//\"}"
-else
-echo "Not in Secure Boot setup mode. Skipping..."
-fi
-
 echo "[comfy] Installing systemd-boot bootloader..."
 arch-chroot /mnt bootctl install --esp-path=/efi
 
 echo "[comfy] Locking root account..."
 arch-chroot /mnt usermod -L root
 
-echo "[comfy] Syncing..."
-sleep 2
-sync
+printopts
+;;
+4) # =============== Secure Boot ===============
 
-echo "[comfy] =============== Setup complete ==============="
-echo "[comfy] When you're ready, run reboot"
-break
+echo "[comfy] Setting up Secure Boot..."
+if [[ "$(efivar -d --name 8be4df61-93ca-11d2-aa0d-00e098032b8c-SetupMode)" -eq 1 ]]; then
+    arch-chroot /mnt sbctl create-keys
+    arch-chroot /mnt sbctl enroll-keys -m
+    arch-chroot /mnt sbctl sign -s -o /usr/lib/systemd/boot/efi/systemd-bootx64.efi.signed /usr/lib/systemd/boot/efi/systemd-bootx64.efi
+    arch-chroot /mnt sbctl sign -s "${default_uki//\"}"
+else
+    echo "[comfy] Not in Secure Boot setup mode. Skipping..."
+fi
+
+printopts
+;;
+5) # =============== Install bloat ===============
+
+echo "[comfy] Installing bloat packages..."
+arch-chroot /mnt pacman -Sy "${bloat[@]}" --noconfirm --quiet
 
 ;;
-4) 
+6) 
 break
 ;;
 *)
