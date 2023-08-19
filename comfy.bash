@@ -1,4 +1,5 @@
 #!/bin/bash
+( # Output everything to comfy.log
 
 # =============== Configuration ===============
 
@@ -43,10 +44,10 @@ if [[ $? -ne 0 ]]; then
     exit 3
 fi
 
-# =============== Select menu ===============
+# =============== Setup menu ===============
 
-PS3="[comfy] Run Setup step: "
-opts=("Disk partitioning" "Package Installation" "System Configuration" "Quit")
+PS3="[comfy] Select action: "
+opts=("Partition disk" "Install packages" "Configure system" "Quit")
 printopts() {
     ind=1
     for opt in "${opts[@]}" ; do
@@ -89,7 +90,7 @@ mount -t vfat /dev/disk/by-partlabel/EFISYSTEM /mnt/efi
 
 printopts
 ;;
-2) # =============== OS install ===============
+2) # =============== Installing packages ===============
 
 echo "[comfy] Updating pacman mirrorlist..."
 reflector --country $reflector --age 24 --protocol https \
@@ -101,10 +102,9 @@ pacstrap -K /mnt
 echo "[comfy] Installing essential packages..."
 arch-chroot /mnt pacman -Sy "${essential[@]}" --noconfirm --quiet
 
-
 printopts
 ;;
-3) # =============== Boot setup ===============
+3) # =============== System setup ===============
 
 
 echo "[comfy] Configuring locale..."
@@ -173,8 +173,14 @@ arch-chroot /mnt bootctl install --esp-path=/efi
 echo "[comfy] Locking root account..."
 arch-chroot /mnt usermod -L root
 
+echo "[comfy] Syncing and unmounting..."
+sync
+umount -R /mnt
 
-printopts
+echo "[comfy] =============== Setup complete ==============="
+echo "[comfy] When you're ready, run reboot"
+break
+
 ;;
 4) 
 break
@@ -184,3 +190,5 @@ continue
 ;;
 esac
 done
+
+) |& tee comfy.log -a
