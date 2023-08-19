@@ -106,9 +106,6 @@ printopts
 ;;
 3) # =============== System setup ===============
 
-echo "[comfy] Configuring locale..."
-sed -i -e "/^#"$locale"/s/^#//" /mnt/etc/locale.gen
-
 echo "[comfy] Removing pacstrap-generated configs..."
 rm /mnt/etc/{machine-id,localtime,hostname,locale.conf} -f
 
@@ -117,7 +114,8 @@ systemd-firstboot --root /mnt --keymap="$keymap" --locale="$locale" \
 	--locale-messages="$locale" --timezone="$timezone" \
 	--hostname="$hostname" --setup-machine-id --welcome=false
 
-echo "[comfy] Generating locale..."
+echo "[comfy] Configuring locale..."
+sed -i -e "/^#"$locale"/s/^#//" /mnt/etc/locale.gen
 arch-chroot /mnt locale-gen
 
 echo "[comfy] Creating local user..."
@@ -172,9 +170,9 @@ arch-chroot /mnt bootctl install --esp-path=/efi
 echo "[comfy] Locking root account..."
 arch-chroot /mnt usermod -L root
 
-echo "[comfy] Syncing and unmounting..."
+echo "[comfy] Syncing..."
+sleep 2
 sync
-umount -R /mnt
 
 echo "[comfy] =============== Setup complete ==============="
 echo "[comfy] When you're ready, run reboot"
