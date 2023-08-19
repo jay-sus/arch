@@ -63,7 +63,7 @@ echo "[comfy] Wiping partition table entries on device $target..."
 sgdisk -Z "$target"
 
 echo "[comfy] Creating partitions (256MB EFI + encrypted LUKS)..."
-sgdisk -n1:0:+256M -t1:ef00 -c1:EFISYSTEM -N2 -t2:8309 -c2:linux "$target"
+sgdisk -n1:0:+256M -t1:ef00 -c1:EFISYSTEM -N2 -t2:8304 -c2:linux "$target"
 
 echo "[comfy] Reloading partition table..."
 sleep 2
@@ -74,7 +74,7 @@ echo "[comfy] Formatting EFI partition..."
 mkfs.vfat -F 32 -n EFISYSTEM /dev/disk/by-partlabel/EFISYSTEM
 
 echo "[comfy] Formatting LUKS partition..."
-cryptsetup luksFormat --type luks2 /dev/disk/by-partlabel/linux --label linux --batch-mode
+cryptsetup luksFormat --type luks2 /dev/disk/by-partlabel/linux --batch-mode
 
 echo "[comfy] Opening LUKS partition..."
 cryptsetup luksOpen --perf-no_read_workqueue --perf-no_write_workqueue \
@@ -105,7 +105,6 @@ arch-chroot /mnt pacman -Sy "${essential[@]}" --noconfirm --quiet
 printopts
 ;;
 3) # =============== System setup ===============
-
 
 echo "[comfy] Configuring locale..."
 sed -i -e "/^#"$locale"/s/^#//" /mnt/etc/locale.gen
