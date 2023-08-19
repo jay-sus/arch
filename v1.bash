@@ -86,7 +86,7 @@ echo "Setting up environment..."
 #add our locale to locale.gen
 sed -i -e "/^#"$locale"/s/^#//" /mnt/etc/locale.gen
 #remove any existing config files that may have been pacstrapped, systemd-firstboot will then regenerate them
-rm /mnt/etc/{machine-id,localtime,hostname,shadow,locale.conf} ||
+rm /mnt/etc/{machine-id,localtime,hostname,shadow,locale.conf} -f
 systemd-firstboot --root /mnt \
 	--keymap="$keymap" --locale="$locale" \
 	--locale-messages="$locale" --timezone="$timezone" \
@@ -152,3 +152,4 @@ sleep 10
 sync
 
 ) |& tee comfy.log -a
+
