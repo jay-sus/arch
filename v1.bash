@@ -1,8 +1,12 @@
 #!/bin/bash
+( # Output everything to v1.log
 
-### Config options
+# =============== Configuration ===============
+
 target="/dev/sda"
 ucode="intel-ucode"
+kernel="linux"
+editor="nano"
 rootmnt="/mnt"
 locale="en_US.UTF-8"
 keymap="us"
@@ -14,29 +18,16 @@ username="test"
 
 ### Packages to pacstrap ##
 pacstrappacs=(
-    base
-    linux
-    linux-firmware
+    $kernel
     $ucode
-    vi
-    nano
-    cryptsetup
-    util-linux
-    e2fsprogs
-    dosfstools
-    sudo
+    $editor
+    linux-firmware
+    base-devel
     networkmanager
 )    
 ### Desktop packages #####
 guipacs=(
-	plasma 
-	sddm 
-	kitty
-	firefox 
-	nm-connection-editor
 	neofetch
-	mousepad
- 	sbctl
 )
 
 
@@ -144,3 +135,5 @@ arch-chroot "$rootmnt" usermod -L root
 echo "Install complete. Run reeboot!"
 sleep 10
 sync
+
+) |& tee comfy.log -a
