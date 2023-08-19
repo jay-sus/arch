@@ -44,34 +44,57 @@ if [[ $? -ne 0 ]]; then
     exit 3
 fi
 
+# =============== Setup menu ===============
 
-# Partition
-echo "Creating partitions..."
+PS3="[comfy] Select action: "
+opts=("Partition disk" "Install packages" "Configure system" "Quit")
+printopts() {
+    ind=1
+    for opt in "${opts[@]}" ; do
+        echo "$((ind++))) $opt"
+    done
+}
+select opt in "${opts[@]}" ; do
+case "$REPLY" in
+
+1) # =============== Disk partitioning ===============
+
+echo "[comfy] Wiping partition table entries on device $target..."
 sgdisk -Z "$target"
-sgdisk \
-    -n1:0:+512M  -t1:ef00 -c1:EFISYSTEM \
-    -N2          -t2:8304 -c2:linux \
-    "$target"
-# Reload partition table
+
+echo "[comfy] Creating partitions (256MB EFI + encrypted LUKS)..."
+sgdisk -n1:0:+256M -t1:ef00 -c1:EFISYSTEM -N2 -t2:8309 -c2:linux "$target"
+
+echo "[comfy] Reloading partition table..."
 sleep 2
 partprobe -s "$target"
 sleep 2
-echo "Encrypting root partition..."
-cryptsetup luksFormat --type luks2 /dev/disk/by-partlabel/linux
-cryptsetup luksOpen /dev/disk/by-partlabel/linux root
-echo "Making File Systems..."
-# Create file systems
-mkfs.vfat -F32 -n EFISYSTEM /dev/disk/by-partlabel/EFISYSTEM
+
+echo "[comfy] Formatting EFI partition..."
+mkfs.vfat -F 32 -n EFISYSTEM /dev/disk/by-partlabel/EFISYSTEM
+
+echo "[comfy] Formatting LUKS partition..."
+cryptsetup luksFormat --type luks2 /dev/disk/by-partlabel/linux --label linux --batch-mode
+
+echo "[comfy] Opening LUKS partition..."
+cryptsetup luksOpen --perf-no_read_workqueue --perf-no_write_workqueue \
+    --persistent /dev/disk/by-partlabel/linux root
+
+echo "[comfy] Formatting root partition..."
 mkfs.ext4 -L linux /dev/mapper/root
-# mount the root, and create + mount the EFI directory
-echo "Mounting File Systems..."
+
+echo "[comfy] Mounting filesystems..."
 mount /dev/mapper/root /mnt
-mkdir /mnt/efi -p
+mkdir -p /mnt/efi
 mount -t vfat /dev/disk/by-partlabel/EFISYSTEM /mnt/efi
 
+printopts
+;;
+2) # =============== Installing packages ===============
 
 echo "[comfy] Updating pacman mirrorlist..."
-reflector --country $reflector --age 24 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
+reflector --country $reflector --age 24 --protocol https \
+    --sort rate --save /etc/pacman.d/mirrorlist
 
 echo "[comfy] Installing base package..."
 pacstrap -K /mnt
@@ -79,6 +102,9 @@ pacstrap -K /mnt
 echo "[comfy] Installing essential packages..."
 arch-chroot /mnt pacman -Sy "${essential[@]}" --noconfirm --quiet
 
+printopts
+;;
+3) # =============== System setup ===============
 
 
 echo "Setting up environment..."
@@ -86,7 +112,7 @@ echo "Setting up environment..."
 #add our locale to locale.gen
 sed -i -e "/^#"$locale"/s/^#//" /mnt/etc/locale.gen
 #remove any existing config files that may have been pacstrapped, systemd-firstboot will then regenerate them
-rm /mnt/etc/{machine-id,localtime,hostname,shadow,locale.conf} -f
+rm /mnt/etc/{machine-id,localtime,hostname,locale.conf} -f
 systemd-firstboot --root /mnt \
 	--keymap="$keymap" --locale="$locale" \
 	--locale-messages="$locale" --timezone="$timezone" \
@@ -147,9 +173,21 @@ arch-chroot /mnt usermod -L root
 #and we're done
 
 
-echo "Install complete. Run reeboot!"
-sleep 10
+
+echo "[comfy] =============== Setup complete ==============="
+echo "[comfy] When you're ready, run reboot"
+sleep 2
 sync
+break
+
+;;
+4) 
+break
+;;
+*)
+continue
+;;
+esac
+done
 
 ) |& tee comfy.log -a
-
