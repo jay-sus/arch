@@ -50,7 +50,7 @@ echo "[comfy] Wiping partition table entries on device $target..."
 sgdisk -Z "$target"
 
 echo "[comfy] Creating partitions (256MB EFI + encrypted LUKS)..."
-sgdisk -n1:0:+256M -t1:ef00 -c1:EFISYSTEM -N2 -t2:8309 -c2:linux "$target"
+sgdisk -n1:0:+256M -t1:ef00 -c1:EFISYSTEM -N2 -t2:8304 -c2:linux "$target"
 
 echo "[comfy] Reloading partition table..."
 sleep 2
@@ -61,7 +61,7 @@ echo "[comfy] Formatting EFI partition..."
 mkfs.vfat -F 32 -n EFISYSTEM /dev/disk/by-partlabel/EFISYSTEM
 
 echo "[comfy] Formatting LUKS partition..."
-cryptsetup luksFormat --type luks2 /dev/disk/by-partlabel/linux --label linux --batch-mode
+cryptsetup luksFormat --type luks2 /dev/disk/by-partlabel/linux --batch-mode
 
 echo "[comfy] Opening LUKS partition..."
 cryptsetup luksOpen --perf-no_read_workqueue --perf-no_write_workqueue \
@@ -109,7 +109,7 @@ arch-chroot /mnt passwd "$username"
 #uncomment the wheel group in the sudoers file
 sed -i -e '/^# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/s/^# //' /mnt/etc/sudoers
 #create a basic kernel cmdline, we're using DPS so we don't need to have anything here really, but if the file doesn't exist, mkinitcpio will complain
-echo "quiet rw" > /mnt/etc/kernel/cmdline
+echo "rw" > /mnt/etc/kernel/cmdline
 #change the HOOKS in mkinitcpio.conf to use systemd hooks
 sed -i \
     -e 's/base udev/base systemd/g' \
@@ -133,7 +133,7 @@ arch-chroot /mnt mkdir -p "$(dirname "${default_uki//\"}")"
 
 #enable the services we will need on start up
 echo "Enabling services..."
-systemctl --root /mnt enable systemd-resolved systemd-timesyncd NetworkManager sddm
+systemctl --root /mnt enable systemd-resolved systemd-timesyncd NetworkManager
 #mask systemd-networkd as we will use NetworkManager instead
 systemctl --root /mnt mask systemd-networkd
 #regenerate the ramdisk, this will create our UKI
