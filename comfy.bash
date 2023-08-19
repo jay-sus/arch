@@ -21,16 +21,6 @@ essential=(
     linux-firmware
     base-devel
     networkmanager
-    cryptsetup
-    util-linux
-    e2fsprogs
-    dosfstools
-    plasma
-    sddm
-    kitty
-    nm-connection-editor
-    mousepad
-    sbctl
 )
 
 # =============== Pre-run checks ===============
@@ -84,7 +74,7 @@ echo "[comfy] Formatting EFI partition..."
 mkfs.vfat -F 32 -n EFISYSTEM /dev/disk/by-partlabel/EFISYSTEM
 
 echo "[comfy] Formatting LUKS partition..."
-cryptsetup luksFormat --type luks2 /dev/disk/by-partlabel/linux --label linux
+cryptsetup luksFormat --type luks2 /dev/disk/by-partlabel/linux --label linux --batch-mode
 
 echo "[comfy] Opening LUKS partition..."
 cryptsetup luksOpen --perf-no_read_workqueue --perf-no_write_workqueue \
