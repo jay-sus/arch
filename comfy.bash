@@ -111,7 +111,7 @@ echo "[comfy] Configuring locale..."
 sed -i -e "/^#"$locale"/s/^#//" /mnt/etc/locale.gen
 
 echo "[comfy] Removing pacstrap-generated configs..."
-rm /mnt/etc/{machine-id,localtime,hostname,shadow,locale.conf} -f
+rm /mnt/etc/{machine-id,localtime,hostname,locale.conf} -f
 
 echo "[comfy] Running systemd-firstboot to regenerate configs..."
 systemd-firstboot --root /mnt --keymap="$keymap" --locale="$locale" \
@@ -144,10 +144,10 @@ sed -i \
     -e '/^#default_options/s/^#//' \
     -e 's/default_image=/#default_image=/g' \
     -e "s/PRESETS=('default' 'fallback')/PRESETS=('default')/g" \
-    /mnt/etc/mkinitcpio.d/linux.preset
+    /mnt/etc/mkinitcpio.d/linux-lts.preset
 
 echo "[comfy] Creating folder structure for UKI..."
-declare $(grep default_uki /mnt/etc/mkinitcpio.d/linux.preset)
+declare $(grep default_uki /mnt/etc/mkinitcpio.d/linux-lts.preset)
 arch-chroot /mnt mkdir -p "$(dirname "${default_uki//\"}")"
 
 echo "[comfy] Enabling services for next boot..."
