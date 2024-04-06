@@ -31,10 +31,8 @@ bloat=(
     pulseaudio
     yt-dlp
     mpv
-    sway
-    swaybg
-    waybar
-    swaylock
+    sddm
+    plasma
 )
 
 # =============== Pre-run checks ===============
