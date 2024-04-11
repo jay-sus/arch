@@ -161,7 +161,7 @@ declare $(grep default_uki /mnt/etc/mkinitcpio.d/"$kernel".preset)
 arch-chroot /mnt mkdir -p "$(dirname "${default_uki//\"}")"
 
 echo "[comfy] Enabling services for next boot..."
-systemctl --root /mnt enable systemd-resolved systemd-timesyncd NetworkManager
+systemctl --root /mnt enable systemd-resolved systemd-timesyncd NetworkManager sddm.service
 systemctl --root /mnt mask systemd-networkd
 
 echo "[comfy] Generating UKI and installing Boot Loader..."
