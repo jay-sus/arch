@@ -1,9 +1,9 @@
 #!/bin/bash
-( # Output everything to comfy.log
+( # Outputs everything to ez.log
 
 # =============== Configuration ===============
 
-target="/dev/sda"
+disk="/dev/sda"
 ucode="intel-ucode"
 kernel="linux"
 editor="nano"
@@ -11,7 +11,7 @@ locale="en_US.UTF-8"
 keymap="us"
 timezone="Europe/London"
 reflector="UK,US"
-hostname="comfy"
+hostname="ez"
 username=""
 
 essential=(
@@ -24,30 +24,43 @@ essential=(
     git
 )
 
+extra=(
+    neofetch        # system information tool
+    htop            # system monitor
+    foot            # terminal emulator
+    pulseaudio      # sound server
+    yt-dlp          # audio/video downloader
+    mpv             # media player
+    sway            # window manager / compositor
+    swaybg          # wallpaper utility
+    waybar          # status bar
+    wofi            # application launcher
+)
+
 # =============== Pre-run checks ===============
 
-echo "[comfy] Checking root..."
+echo "[ez] Checking root..."
 if [[ "$UID" -ne 0 ]]; then
-    echo "[comfy] This script needs to be run as root!" >&2
+    echo "[ez] This script needs to be run as root!" >&2
     exit 3
 fi
 
-echo "[comfy] Checking configuration..."
+echo "[ez] Checking configuration..."
 if [[ -z "$username" ]]; then
-    echo "[comfy] Configure this script before running!" >&2
+    echo "[ez] Configure this script before running!" >&2
     exit 3
 fi
 
-echo "[comfy] Checking internet..."
+echo "[ez] Checking internet..."
 ping -c 1 "1.1.1.1" &> /dev/null
 if [[ $? -ne 0 ]]; then
-    echo "[comfy] Connect to the internet!" >&2
+    echo "[ez] Connect to the internet!" >&2
     exit 3
 fi
 
 # =============== Setup menu ===============
 
-PS3="[comfy] Select action: "
+PS3="[ez] Select action: "
 opts=("Format disk" "Install essentials" "Configure system" \
     "Secure Boot" "Quit")
 printopts() {
@@ -61,31 +74,31 @@ case "$REPLY" in
 
 1) # =============== Format disk ===============
 
-echo "[comfy] Wiping partition table entries on device $target..."
-sgdisk -Z "$target"
+echo "[ez] Wiping partition table entries on device $disk..."
+sgdisk -Z "$disk"
 
-echo "[comfy] Creating partitions (256MB EFI + encrypted LUKS)..."
-sgdisk -n1:0:+256M -t1:ef00 -c1:EFISYSTEM -N2 -t2:8304 -c2:linux "$target"
+echo "[ez] Creating partitions (256MB EFI + encrypted LUKS)..."
+sgdisk -n1:0:+256M -t1:ef00 -c1:EFISYSTEM -N2 -t2:8304 -c2:linux "$disk"
 
-echo "[comfy] Reloading partition table..."
+echo "[ez] Reloading partition table..."
 sleep 2
-partprobe -s "$target"
+partprobe -s "$disk"
 sleep 2
 
-echo "[comfy] Formatting EFI partition..."
+echo "[ez] Formatting EFI partition..."
 mkfs.vfat -F 32 -n EFISYSTEM /dev/disk/by-partlabel/EFISYSTEM
 
-echo "[comfy] Creating LUKS partition..."
+echo "[ez] Creating LUKS partition..."
 cryptsetup luksFormat --type luks2 /dev/disk/by-partlabel/linux --batch-mode
 
-echo "[comfy] Opening LUKS partition..."
+echo "[ez] Opening LUKS partition..."
 cryptsetup luksOpen --perf-no_read_workqueue --perf-no_write_workqueue \
     --persistent /dev/disk/by-partlabel/linux root
 
-echo "[comfy] Formatting root partition..."
+echo "[ez] Formatting root partition..."
 mkfs.ext4 -L linux /dev/mapper/root
 
-echo "[comfy] Mounting filesystems..."
+echo "[ez] Mounting filesystems..."
 mount /dev/mapper/root /mnt
 mkdir -p /mnt/efi
 mount -t vfat /dev/disk/by-partlabel/EFISYSTEM /mnt/efi
@@ -94,49 +107,49 @@ printopts
 ;;
 2) # =============== Install essentials ===============
 
-echo "[comfy] Updating pacman mirrorlist..."
+echo "[ez] Updating pacman mirrorlist..."
 reflector --country $reflector --age 24 --protocol https \
     --sort rate --save /etc/pacman.d/mirrorlist
 
-echo "[comfy] Installing base package..."
+echo "[ez] Installing base package..."
 pacstrap -K /mnt
 
-echo "[comfy] Installing essential packages..."
+echo "[ez] Installing essential packages..."
 arch-chroot /mnt pacman -Sy "${essential[@]}" --noconfirm --quiet
 
 printopts
 ;;
 3) # =============== Configure system ===============
 
-echo "[comfy] Removing pacstrap-generated configs..."
+echo "[ez] Removing pacstrap-generated configs..."
 rm /mnt/etc/{machine-id,localtime,hostname,locale.conf} -f
 
-echo "[comfy] Running systemd-firstboot to regenerate configs..."
+echo "[ez] Running systemd-firstboot to regenerate configs..."
 systemd-firstboot --root /mnt --keymap="$keymap" --locale="$locale" \
 	--locale-messages="$locale" --timezone="$timezone" \
 	--hostname="$hostname" --setup-machine-id --welcome=false
 
-echo "[comfy] Configuring locale..."
+echo "[ez] Configuring locale..."
 sed -i -e "/^#"$locale"/s/^#//" /mnt/etc/locale.gen
 arch-chroot /mnt locale-gen
 
-echo "[comfy] Creating user \""$username"\"..."
+echo "[ez] Creating user \""$username"\"..."
 arch-chroot /mnt useradd -G wheel -m "$username"
 arch-chroot /mnt passwd "$username"
 
-echo "[comfy] Enabling sudo for wheel group..."
+echo "[ez] Enabling sudo for wheel group..."
 sed -i -e '/^# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/s/^# //' /mnt/etc/sudoers
 
-echo "[comfy] Creating a basic kernel cmdline for mkinitcpio..."
+echo "[ez] Creating a basic kernel cmdline for mkinitcpio..."
 echo "quiet rw" > /mnt/etc/kernel/cmdline
 
-echo "[comfy] Switching hooks in mkinitcpio.conf..."
+echo "[ez] Switching hooks in mkinitcpio.conf..."
 sed -i \
     -e 's/base udev/base systemd/g' \
     -e 's/keymap consolefont/sd-vconsole sd-encrypt/g' \
     /mnt/etc/mkinitcpio.conf
 
-echo "[comfy] Enabling Unified Kernel Image in preset file..."
+echo "[ez] Enabling Unified Kernel Image in preset file..."
 sed -i \
     -e '/^#ALL_config/s/^#//' \
     -e '/^#default_uki/s/^#//' \
@@ -145,40 +158,46 @@ sed -i \
     -e "s/PRESETS=('default' 'fallback')/PRESETS=('default')/g" \
     /mnt/etc/mkinitcpio.d/"$kernel".preset
 
-echo "[comfy] Creating folder structure for UKI..."
+echo "[ez] Creating folder structure for UKI..."
 declare $(grep default_uki /mnt/etc/mkinitcpio.d/"$kernel".preset)
 arch-chroot /mnt mkdir -p "$(dirname "${default_uki//\"}")"
 
-echo "[comfy] Enabling services for next boot..."
+echo "[ez] Enabling services for next boot..."
 systemctl --root /mnt enable systemd-resolved systemd-timesyncd NetworkManager
 systemctl --root /mnt mask systemd-networkd
 
-echo "[comfy] Generating UKI and installing Boot Loader..."
+echo "[ez] Generating UKI and installing Boot Loader..."
 arch-chroot /mnt mkinitcpio -p $kernel
 
-echo "[comfy] Installing systemd-boot bootloader..."
+echo "[ez] Installing systemd-boot bootloader..."
 arch-chroot /mnt bootctl install --esp-path=/efi
 
-echo "[comfy] Locking root account..."
+echo "[ez] Locking root account..."
 arch-chroot /mnt usermod -L root
 
 printopts
 ;;
 4) # =============== Secure Boot ===============
 
-echo "[comfy] Setting up Secure Boot..."
+echo "[ez] Setting up Secure Boot..."
 if [[ "$(efivar -d --name 8be4df61-93ca-11d2-aa0d-00e098032b8c-SetupMode)" -eq 1 ]]; then
     arch-chroot /mnt sbctl create-keys
     arch-chroot /mnt sbctl enroll-keys -m
     arch-chroot /mnt sbctl sign -s -o /usr/lib/systemd/boot/efi/systemd-bootx64.efi.signed /usr/lib/systemd/boot/efi/systemd-bootx64.efi
     arch-chroot /mnt sbctl sign -s "${default_uki//\"}"
 else
-    echo "[comfy] Not in Secure Boot setup mode. Skipping..."
+    echo "[ez] Not in Secure Boot setup mode. Skipping..."
 fi
 
 printopts
 ;;
-5) 
+5) # =============== Install extra ===============
+
+echo "[ez] Installing extra packages..."
+arch-chroot /mnt pacman -Sy "${extra[@]}" --noconfirm --quiet
+
+;;
+6)
 break
 ;;
 *)
@@ -187,4 +206,4 @@ continue
 esac
 done
 
-) |& tee comfy.log -a
+) |& tee ez.log -a

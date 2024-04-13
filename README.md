@@ -1,4 +1,6 @@
-# Comfy Arch install script
+# Ez Arch install
+
+A custom install script for Arch Linux.
 
 ---
 
