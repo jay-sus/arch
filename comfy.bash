@@ -21,18 +21,7 @@ essential=(
     linux-firmware
     base-devel
     networkmanager
-)
-
-bloat=(
-    neofetch
     git
-    htop
-    kitty
-    pulseaudio
-    yt-dlp
-    mpv
-    sddm
-    plasma
 )
 
 # =============== Pre-run checks ===============
@@ -60,7 +49,7 @@ fi
 
 PS3="[comfy] Select action: "
 opts=("Format disk" "Install essentials" "Configure system" \
-    "Secure Boot" "Install bloat" "Quit")
+    "Secure Boot" "Quit")
 printopts() {
     ind=1
     for opt in "${opts[@]}" ; do
@@ -161,7 +150,7 @@ declare $(grep default_uki /mnt/etc/mkinitcpio.d/"$kernel".preset)
 arch-chroot /mnt mkdir -p "$(dirname "${default_uki//\"}")"
 
 echo "[comfy] Enabling services for next boot..."
-systemctl --root /mnt enable systemd-resolved systemd-timesyncd NetworkManager sddm.service
+systemctl --root /mnt enable systemd-resolved systemd-timesyncd NetworkManager
 systemctl --root /mnt mask systemd-networkd
 
 echo "[comfy] Generating UKI and installing Boot Loader..."
@@ -189,13 +178,7 @@ fi
 
 printopts
 ;;
-5) # =============== Install bloat ===============
-
-echo "[comfy] Installing bloat packages..."
-arch-chroot /mnt pacman -Sy "${bloat[@]}" --noconfirm --quiet
-
-;;
-6) 
+5) 
 break
 ;;
 *)
